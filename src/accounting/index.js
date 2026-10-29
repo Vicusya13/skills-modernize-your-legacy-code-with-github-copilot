@@ -13,7 +13,7 @@
  *   - Debit only succeeds when balance >= amount ("Insufficient funds" otherwise)
  */
 
-const readline = require("readline/promises");
+const readline = require("readline");
 
 const INITIAL_BALANCE = 1000.0;
 
@@ -71,7 +71,14 @@ class Operations {
 
 // main.cob: interactive menu loop
 async function main() {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  // Line iterator works for both interactive use and piped input
+  const rl = readline.createInterface({ input: process.stdin, terminal: false });
+  const lines = rl[Symbol.asyncIterator]();
+  const ask = async (question) => {
+    process.stdout.write(question);
+    const { value, done } = await lines.next();
+    return done ? null : value;
+  };
   const operations = new Operations(new DataStore());
   let continueFlag = true;
 
@@ -83,14 +90,15 @@ async function main() {
     console.log("3. Debit Account");
     console.log("4. Exit");
     console.log("--------------------------------");
-    const choice = (await rl.question("Enter your choice (1-4): ")).trim();
+    const answer = await ask("Enter your choice (1-4): ");
+    const choice = answer === null ? "4" : answer.trim();
 
     switch (choice) {
       case "1":
         console.log(`Current balance: ${formatAmount(operations.total())}`);
         break;
       case "2": {
-        const amount = parseAmount(await rl.question("Enter credit amount: "));
+        const amount = parseAmount(await ask("Enter credit amount: "));
         if (amount === null) {
           console.log("Invalid amount.");
           break;
@@ -100,7 +108,7 @@ async function main() {
         break;
       }
       case "3": {
-        const amount = parseAmount(await rl.question("Enter debit amount: "));
+        const amount = parseAmount(await ask("Enter debit amount: "));
         if (amount === null) {
           console.log("Invalid amount.");
           break;
